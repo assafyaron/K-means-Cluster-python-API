@@ -1,7 +1,10 @@
 from setuptools import Extension, setup
 
-module = Extension("kmeansmodule", sources=['kmeansmodule.c'])
-setup(name='kmeansmodule',
-     version='1.0',
-     description='Python wrapper for custom C extension',
-     ext_modules=[module])
+module = Extension('mykmeanssp', sources=['kmeansmodule.c'])
+
+setup(
+    name='mykmeanssp',
+    version='1.0',
+    description='K-means clustering module',
+    ext_modules=[module]
+)
