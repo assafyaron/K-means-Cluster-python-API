@@ -2,7 +2,7 @@ import math
 import sys
 import pandas as pd
 import numpy as np
-import kmeansmodule as g
+import mykmeanssp as kmc
 np.random.seed(1234)
 
 # Assert correct values for k, iter, epsilon
@@ -121,7 +121,23 @@ def main():
     # Choose k centroids using kmeans++
     centroids = kmeans_pp(vectors, k, N, iter, eps)
 
+    # Save number of vector columns
+    vecdim = len(vectors.columns)
 
+    # Convert vectors to python list of lists
+    vectors = vectors.values.tolist()
+
+    # Convert centroids to python list of lists with only the values
+    # Init a python list of lists sized k x vecdim
+    final_centroids = [[0 for i in range(vecdim)] for j in range(k)]
+    for i in range(k):
+        final_centroids[i] = centroids[i].values.tolist()
+
+    final_centroids = kmc.fit(k,N,vecdim,iter,eps,vectors,centroids)
+
+    # print final centroids
+    for i in range(k):
+        print(','.join(map(str, final_centroids[i])))
 
 if __name__ == "__main__":
     main()
