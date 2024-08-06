@@ -5,6 +5,25 @@ import numpy as np
 import mykmeanssp as kmc
 np.random.seed(1234)
 
+def is_k_iter_eps_numbers(k, iter, eps):
+    try:
+        float(k)
+    except ValueError:
+        print("Invalid number of clusters!")
+        exit(1)
+        
+    try:
+        float(iter)
+    except ValueError:
+        print("Invalid maximum iteration!")
+        exit(1)
+        
+    try:
+        float(eps)
+    except ValueError:
+        print("Invalid epsilon!")
+        exit(1)
+
 # Assert correct values for k, iter, epsilon
 def assert_inputs(k, iter, eps, N):
     ok = True
@@ -14,7 +33,7 @@ def assert_inputs(k, iter, eps, N):
     if not ((1 <= iter <= 1000) and (iter % 1 == 0)):
         print("Invalid maximum iteration!")
         return not ok
-    if not 0 <= eps <= 1:
+    if not (0 <= eps):
         print("Invalid epsilon!")
         return not ok
     return ok
@@ -82,62 +101,78 @@ def kmeans_pp(vectors, k, N, iter, eps):
         # Filter out rows where the original index is in the ignore list
         vectors = vectors[~vectors.index.isin(ignore)]
 
-    return centroids
+    return [centroids,ignore]
 
 
 def main():
 
-    # Get data from console
-    input_data = sys.argv
-    if len(input_data) < 6:
-        k, iter, eps, file_name1, file_name2 = float(input_data[1]), 300, float(input_data[2]), input_data[3], input_data[4]
-    else:
-        k, iter, eps, file_name1, file_name2 = float(input_data[1]), float(input_data[2]), float(input_data[3]), input_data[4], input_data[5]
+    try:
+        # Get data from console
+        input_data = sys.argv
+        if len(input_data) < 6:
+            is_k_iter_eps_numbers(input_data[1],300,input_data[2]) # Check if k, iter, eps are numbers
+            k, iter, eps, file_name1, file_name2 = float(input_data[1]), 300, float(input_data[2]), input_data[3], input_data[4]
+        else:
+            is_k_iter_eps_numbers(input_data[1],input_data[2],input_data[3]) # Check if k, iter, eps are numbers
+            k, iter, eps, file_name1, file_name2 = float(input_data[1]), float(input_data[2]), float(input_data[3]), input_data[4], input_data[5]
 
-    # Combine both input files into one dataframe using inner-join with the first column as key
-    df1 = pd.read_csv(file_name1, header=None)
-    df2 = pd.read_csv(file_name2, header=None)
-    vectors = pd.merge(df1, df2, on=0, how='inner')
+        # Combine both input files into one dataframe using inner-join with the first column as key
+        df1 = pd.read_csv(file_name1, header=None)
+        df2 = pd.read_csv(file_name2, header=None)
+        vectors = pd.merge(df1, df2, on=0, how='inner')
 
-    # Save the result to a new file
-    vectors.to_csv('output.csv', header=False, index=False)
+        # Sort result by the first column
+        vectors = vectors.sort_values(by=[0])
 
-    # Sort result by the first column
-    vectors = vectors.sort_values(by=[0])
+        # Save dictionary that maps index to first column value
+        name_to_cloumn_zero = {}
+        for i in range(len(vectors)):
+            name_to_cloumn_zero[vectors.iloc[i].name] = vectors.iloc[i][0]
 
-    # Delete the first column
-    vectors = vectors.drop(columns=[0])
+        # Delete the first column
+        vectors = vectors.drop(columns=[0])
 
-    N = int(len(vectors))
+        N = int(len(vectors))
 
-    # Assert inputs
-    if not assert_inputs(k, iter, eps, N):
-        exit(1)
+        # Assert inputs
+        if not assert_inputs(k, iter, eps, N):
+            exit(1)
 
-    # Parse k, iter to int
-    k = int(k)
-    iter = int(iter)
-    
-    # Choose k centroids using kmeans++
-    centroids = kmeans_pp(vectors, k, N, iter, eps)
+        # Parse k, iter to int
+        k = int(k)
+        iter = int(iter)
+        
+        # Choose k centroids using kmeans++
+        centroids,ignore = kmeans_pp(vectors, k, N, iter, eps)
 
-    # Save number of vector columns
-    vecdim = len(vectors.columns)
+        choesn_vectors = []
+        for i in range(len(ignore)):
+            choesn_vectors.append(int(name_to_cloumn_zero[ignore[i]]))
 
-    # Convert vectors to python list of lists
-    vectors = vectors.values.tolist()
+        # Save number of vector columns
+        vecdim = len(vectors.columns)
 
-    # Convert centroids to python list of lists with only the values
-    # Init a python list of lists sized k x vecdim
-    final_centroids = [[0 for i in range(vecdim)] for j in range(k)]
-    for i in range(k):
-        final_centroids[i] = centroids[i].values.tolist()
+        # Convert vectors to python list of lists
+        vectors = vectors.values.tolist()
 
-    final_centroids = kmc.fit(k,N,vecdim,iter,eps,vectors,centroids)
+        # Convert centroids to python list of lists with only the values
+        # Init a python list of lists sized k x vecdim
+        centroids_as_pylist = [[0 for i in range(vecdim)] for j in range(k)]
+        for i in range(k):
+            for j in range(vecdim):
+                centroids_as_pylist[i][j] = centroids[i].iloc[j]
 
-    # print final centroids
-    for i in range(k):
-        print(','.join(map(str, final_centroids[i])))
+        # Run kmeans algorithm
+        final_centroids = kmc.fit(k,N,vecdim,iter,eps,vectors,centroids_as_pylist)
+
+        # Print the chosen vectors
+        print(','.join(str(x) for x in choesn_vectors))
+        # print final centroids until 4 decimal points
+        for centroid in final_centroids:
+            print(','.join(format(x, ".4f") for x in centroid))
+
+    except Exception:
+        print("An Error Has Occurred")
 
 if __name__ == "__main__":
     main()
