@@ -74,13 +74,13 @@ void divide_all_clusters(double **clusters, int k, int vecdim, int *cluster_size
     }
 }
 
-int check_convergence(double **centroids, double **clusters, int k, int vecdim)
+int check_convergence(double **centroids, double **clusters, int k, int vecdim, double eps)
 {
     int i;
     int flag = 1;
     for (i=0;i<k;i++)
     {
-        if (!(euclidean_distance(centroids[i], clusters[i], vecdim) < 0.0001))
+        if (!(euclidean_distance(centroids[i], clusters[i], vecdim) < eps))
         {
             flag = 0;
             break;
@@ -230,7 +230,7 @@ double** kmeans(int k, int N, int vecdim, int iter, double eps, double **vec_arr
         divide_all_clusters(clusters, k, vecdim, cluster_sizes);
 
         /* check for convergence */
-        if (check_convergence(centroids, clusters, k, vecdim))
+        if (check_convergence(centroids, clusters, k, vecdim, eps))
         {
             break;
         }
@@ -250,8 +250,6 @@ double** kmeans(int k, int N, int vecdim, int iter, double eps, double **vec_arr
 
 static PyObject* k_means(PyObject *self, PyObject *args)
 {
-    printf("starting parsing\n");
-
     int k, N, vecdim, iter;
     double eps;
     PyObject* vec_arr_obj;
@@ -320,36 +318,66 @@ static PyObject* k_means(PyObject *self, PyObject *args)
     }
 
     /* Convert python lists into C arrays */
-    PyObject* vec;
+    PyObject* vec1;
+    PyObject* vec2;
     for (i=0;i<N;i++)
     {
-        vec = PyList_GetItem(vec_arr_obj, i);
+        vec1 = PyList_GetItem(vec_arr_obj, i);
         for (j=0;j<vecdim;j++)
         {
-            vec_arr[i][j] = PyFloat_AsDouble(PyList_GetItem(vec,j));
+            vec_arr[i][j] = PyFloat_AsDouble(PyList_GetItem(vec1,j));
         }
     }
     for (i=0;i<k;i++)
     {
-        vec = PyList_GetItem(centroids_obj, i);
+        vec2 = PyList_GetItem(centroids_obj, i);
         for (j=0;j<vecdim;j++)
         {
-            centroids[i][j] = PyFloat_AsDouble(PyList_GetItem(vec,j));
+            centroids[i][j] = PyFloat_AsDouble(PyList_GetItem(vec2,j));
         }
     }
 
-    /* print vec_arr and centroids */
-    printf("vec_arr\n");
-    print_vec_arr(vec_arr, N, vecdim);
-    printf("centroids\n");
-    print_vec_arr(centroids, k, vecdim);
+    /* save kmeans return value */
+    double** kmeans_ret = malloc(k*sizeof(double*));
+    if (kmeans_ret == NULL)
+    {
+        PyErr_SetString(PyExc_MemoryError, "Memory allocation failed");
+        for (i=0;i<N;i++)
+        {
+            free(vec_arr[i]);
+        }
+        free(vec_arr);
+        for (i=0;i<k;i++)
+        {
+            free(centroids[i]);
+        }
+        free(centroids);
+        return NULL;
+    }
+    kmeans_ret = kmeans(k, N, vecdim, iter, eps, vec_arr, centroids);
 
-    printf("end of parsing\n");
+    /* Convert our C double** to a python list of lists*/
+    PyObject* final_centroids = PyList_New(k);
+    PyObject* final_centroid;
+    for (i=0;i<k;i++)
+    {
+        final_centroid = PyList_New(vecdim);
+        for (j=0;j<vecdim;j++)
+        {
+            PyList_SetItem(final_centroid, j, PyFloat_FromDouble(kmeans_ret[i][j]));
+        }
+        PyList_SetItem(final_centroids, i, final_centroid);
+    }
 
-    /* Our function returns new centroids using Py_BuildValue */
-    return Py_BuildValue("O", kmeans(k, N, vecdim, iter, eps, vec_arr, centroids));
+    /* Free all allocated memory */
+    for (i=0;i<k;i++)
+    {
+        free(centroids[i]);
+    }
+    free(centroids);
+
+    return Py_BuildValue("O", final_centroids);;
 }
-
 
 static PyMethodDef kmeansMethods[] = {
     {"fit",                   /* the Python method name that will be used */
