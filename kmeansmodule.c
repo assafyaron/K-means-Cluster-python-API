@@ -175,7 +175,7 @@ double** kmeans(int k, int N, int vecdim, int iter, double eps, double **vec_arr
         matrix_free(vec_arr, N);
         matrix_free(clusters, k);
         matrix_free(centroids, k);
-        return 1;
+        return NULL;
     }
     
     cluster_sizes = malloc(k * sizeof(int));
@@ -186,7 +186,7 @@ double** kmeans(int k, int N, int vecdim, int iter, double eps, double **vec_arr
         matrix_free(clusters, k);
         matrix_free(centroids, k);
         free(cluster_sizes);
-        return 1;
+        return NULL;
     }
 
     /* zero out the cluster_sizes array */
@@ -203,7 +203,7 @@ double** kmeans(int k, int N, int vecdim, int iter, double eps, double **vec_arr
             matrix_free(clusters, k);
             matrix_free(centroids, k);
             free(cluster_sizes);
-            return 1;
+            return NULL;
         }
         for (j=0;j<vecdim;j++)
         {
@@ -355,7 +355,11 @@ static PyObject* k_means(PyObject *self, PyObject *args)
         return NULL;
     }
     kmeans_ret = kmeans(k, N, vecdim, iter, eps, vec_arr, centroids);
-
+    if(kmeans_ret == NULL)
+    {
+        return NULL;
+    }
+    
     /* Convert our C double** to a python list of lists*/
     PyObject* final_centroids = PyList_New(k);
     PyObject* final_centroid;
@@ -376,7 +380,7 @@ static PyObject* k_means(PyObject *self, PyObject *args)
     }
     free(centroids);
 
-    return Py_BuildValue("O", final_centroids);;
+    return Py_BuildValue("O", final_centroids);
 }
 
 static PyMethodDef kmeansMethods[] = {
@@ -406,4 +410,3 @@ PyMODINIT_FUNC PyInit_mykmeanssp(void)
     }
     return m;
 }
-
