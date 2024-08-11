@@ -1,4 +1,5 @@
 Implementation of K Means Algorithm in Python using C-python API to optimize runtime.
+Initial centroids will be decided by running kmeans++ on the merging of both txt files.
 
 Input: k, iter, epsilon, input1.txt, input2.txt
 
